@@ -7,7 +7,32 @@
 
 #define MEX_ARGS int nlhs, mxArray **plhs, int nrhs, const mxArray **prhs
 
-inline mxArray* Ctype2Mx4DT(const cxx_real_t *ptr, cxx_uint oshape[4], cxx_uint ostride) {
+typedef unsigned long long uint64;
+union Ptr {
+  uint64 data;
+  void *ptr;
+};
+
+
+static mxArray* SetHandle(void *handle) {
+  union Ptr bridge;
+  bridge.data = 0;
+  bridge.ptr = handle;
+  const mwSize dims[1] = {1};
+  mxArray *mx_out = mxCreateNumericArray(1, dims, mxUINT64_CLASS, mxREAL);
+  uint64 *up = reinterpret_cast<uint64*>(mxGetData(mx_out));
+  *up = bridge.data;
+  return mx_out;
+}
+
+static void *GetHandle(const mxArray *input) {
+  union Ptr bridge;
+  uint64 *up = reinterpret_cast<uint64*>(mxGetData(input));
+  bridge.data = *up;
+  return bridge.ptr;
+}
+
+static mxArray* Ctype2Mx4DT(const cxx_real_t *ptr, cxx_uint oshape[4], cxx_uint ostride) {
   const mwSize dims[4] = {oshape[0], oshape[1], oshape[2], oshape[3]};
   mxArray *mx_out = mxCreateNumericArray(4, dims, mxSINGLE_CLASS, mxREAL);
   cxx_real_t *mx_ptr = reinterpret_cast<cxx_real_t*>(mxGetData(mx_out));
@@ -23,7 +48,7 @@ inline mxArray* Ctype2Mx4DT(const cxx_real_t *ptr, cxx_uint oshape[4], cxx_uint 
   return mx_out;
 }
 
-inline mxArray* Ctype2Mx2DT(const cxx_real_t *ptr, cxx_uint oshape[2], cxx_uint ostride) {
+static mxArray* Ctype2Mx2DT(const cxx_real_t *ptr, cxx_uint oshape[2], cxx_uint ostride) {
   const mwSize dims[2] = {oshape[0], oshape[1]};
   mxArray *mx_out = mxCreateNumericArray(2, dims, mxSINGLE_CLASS, mxREAL);
   cxx_real_t *mx_ptr = reinterpret_cast<cxx_real_t*>(mxGetData(mx_out));
@@ -36,7 +61,7 @@ inline mxArray* Ctype2Mx2DT(const cxx_real_t *ptr, cxx_uint oshape[2], cxx_uint 
 }
 
 
-inline mxArray* Ctype2Mx1DT(const cxx_real_t *ptr, cxx_uint len) {
+static mxArray* Ctype2Mx1DT(const cxx_real_t *ptr, cxx_uint len) {
   const mwSize dims[1] = {len};
   mxArray *mx_out = mxCreateNumericArray(1, dims, mxSINGLE_CLASS, mxREAL);
   cxx_real_t *mx_ptr = reinterpret_cast<cxx_real_t*>(mxGetData(mx_out));
@@ -45,12 +70,8 @@ inline mxArray* Ctype2Mx1DT(const cxx_real_t *ptr, cxx_uint len) {
 }
 
 static mxArray* MXCXNIOCreateFromConfig(const char *cfg) {
-  const mwSize dims[1] = {1};
-  mxArray *mx_out = mxCreateNumericArray(1, dims, mxUINT64_CLASS, mxREAL);
-  void *mx_ptr = mxGetData(mx_out);
   void *handle = CXNIOCreateFromConfig(cfg);
-  memcpy(mx_ptr, handle, sizeof(void*));
-  return mx_out;
+  return SetHandle(handle);
 }
 
 static mxArray* MXCXNIONext(void *handle) {
@@ -85,12 +106,8 @@ static void MXCXNIOFree(void *handle) {
 }
 
 static mxArray* MXCXNNetCreate(const char *device, const char *cfg) {
-  const mwSize dims[1] = {1};
-  mxArray *mx_out = mxCreateNumericArray(1, dims, mxUINT64_CLASS, mxREAL);
-  void *mx_ptr = mxGetData(mx_out);
   void *handle = CXNNetCreate(device, cfg);
-  memcpy(mx_ptr, handle, sizeof(void*));
-  return mx_out;
+  return SetHandle(handle);
 }
 
 static void MXCXNNetFree(void *handle) {
@@ -194,27 +211,27 @@ static void MEXCXNIOCreateFromConfig(MEX_ARGS) {
 }
 
 static void MEXCXNIONext(MEX_ARGS) {
-  void *handle = mxGetData(prhs[1]);
+  void *handle = GetHandle(prhs[1]);
   plhs[0] = MXCXNIONext(handle);
 }
 
 static void MEXCXNIOBeforeFirst(MEX_ARGS) {
-  void *handle = mxGetData(prhs[1]);
+  void *handle = GetHandle(prhs[1]);
   MXCXNIOBeforeFirst(handle);
 }
 
 static void MEXCXNIOGetData(MEX_ARGS) {
-  void *handle = mxGetData(prhs[1]);
+  void *handle = GetHandle(prhs[1]);
   plhs[0] = MXCXNIOGetData(handle);
 }
 
 static void MEXCXNIOGetLabel(MEX_ARGS) {
-  void *handle = mxGetData(prhs[1]);
+  void *handle = GetHandle(prhs[1]);
   plhs[0] = MXCXNIOGetLabel(handle);
 }
 
 static void MEXCXNIOFree(MEX_ARGS) {
-  void *handle = mxGetData(prhs[1]);
+  void *handle = GetHandle(prhs[1]);
   MXCXNIOFree(handle);
 }
 
@@ -227,12 +244,12 @@ static void MEXCXNNetCreate(MEX_ARGS) {
 }
 
 static void MEXCXNNetFree(MEX_ARGS) {
-  void *handle = mxGetData(prhs[1]);
+  void *handle = GetHandle(prhs[1]);
   MXCXNNetFree(handle);
 }
 
 static void MEXCXNNetSetParam(MEX_ARGS) {
-  void *handle = mxGetData(prhs[1]);
+  void *handle = GetHandle(prhs[1]);
   char *key = mxArrayToString(prhs[2]);
   char *val = mxArrayToString(prhs[3]);
   MXCXNNetSetParam(handle, key, val);
@@ -241,32 +258,32 @@ static void MEXCXNNetSetParam(MEX_ARGS) {
 }
 
 static void MEXCXNNetInitModel(MEX_ARGS) {
-  void *handle = mxGetData(prhs[1]);
+  void *handle = GetHandle(prhs[1]);
   MXCXNNetInitModel(handle);
 }
 
 static void MEXCXNNetSaveModel(MEX_ARGS) {
-  void *handle = mxGetData(prhs[1]);
+  void *handle = GetHandle(prhs[1]);
   char *name = mxArrayToString(prhs[2]);
   MXCXNNetSaveModel(handle, name);
   mxFree(name);
 }
 
 static void MEXCXNNetLoadModel(MEX_ARGS) {
-  void *handle = mxGetData(prhs[1]);
+  void *handle = GetHandle(prhs[1]);
   char *name = mxArrayToString(prhs[2]);
   MXCXNNetLoadModel(handle, name);
   mxFree(name);
 }
 
 static void MEXCXNNetStartRound(MEX_ARGS) {
-  void *handle = mxGetData(prhs[1]);
+  void *handle = GetHandle(prhs[1]);
   int *ptr = reinterpret_cast<int*>(mxGetData(prhs[2]));
   MXCXNNetStartRound(handle, *ptr);
 }
 
 static void MEXCXNNetSetWeight(MEX_ARGS) {
-  void *handle = mxGetData(prhs[1]);
+  void *handle = GetHandle(prhs[1]);
   const mxArray *p_weight = prhs[2];
   char *layer_name = mxArrayToString(prhs[3]);
   char *wtag = mxArrayToString(prhs[4]);
@@ -276,7 +293,7 @@ static void MEXCXNNetSetWeight(MEX_ARGS) {
 }
 
 static void MEXCXNNetGetWeight(MEX_ARGS) {
-  void *handle = mxGetData(prhs[1]);
+  void *handle = GetHandle(prhs[1]);
   char *layer_name = mxArrayToString(prhs[2]);
   char *wtag = mxArrayToString(prhs[3]);
   plhs[0] = MXCXNNetGetWeight(handle, layer_name, wtag);
@@ -285,13 +302,13 @@ static void MEXCXNNetGetWeight(MEX_ARGS) {
 }
 
 static void MEXCXNNetUpdateIter(MEX_ARGS) {
-  void *handle = mxGetData(prhs[1]);
-  void *data_handle = mxGetData(prhs[2]);
+  void *handle = GetHandle(prhs[1]);
+  void *data_handle = GetHandle(prhs[2]);
   MXCXNNetUpdateIter(handle, data_handle);
 }
 
 static void MEXCXNNetUpdateBatch(MEX_ARGS) {
-  void *handle = mxGetData(prhs[1]);
+  void *handle = GetHandle(prhs[1]);
   const mxArray *p_data = prhs[2];
   const mxArray *p_label = prhs[3];
   cxx_uint dshape[4];
@@ -307,7 +324,7 @@ static void MEXCXNNetUpdateBatch(MEX_ARGS) {
 }
 
 static void MEXCXNNetPredictBatch(MEX_ARGS) {
-  void *handle = mxGetData(prhs[1]);
+  void *handle = GetHandle(prhs[1]);
   const mxArray *p_data = prhs[2];
   cxx_uint dshape[4];
   assert(mxGetNumberOfDimensions(p_data) == 4);
@@ -318,13 +335,13 @@ static void MEXCXNNetPredictBatch(MEX_ARGS) {
 }
 
 static void MEXCXNNetPredictIter(MEX_ARGS) {
-  void *handle = mxGetData(prhs[1]);
-  void *data_handle = mxGetData(prhs[2]);
+  void *handle = GetHandle(prhs[1]);
+  void *data_handle = GetHandle(prhs[2]);
   plhs[0] = MXCXNNetPredictIter(handle, data_handle);
 }
 
 static void MEXCXNNetExtractBatch(MEX_ARGS) {
-  void *handle = mxGetData(prhs[1]);
+  void *handle = GetHandle(prhs[1]);
   const mxArray *p_data = prhs[2];
   char *node_name = mxArrayToString(prhs[3]);
   assert(mxGetNumberOfDimensions(p_data) == 4);
@@ -337,16 +354,16 @@ static void MEXCXNNetExtractBatch(MEX_ARGS) {
 }
 
 static void MEXCXNNetExtractIter(MEX_ARGS) {
-  void *handle = mxGetData(prhs[1]);
-  void *data_handle = mxGetData(prhs[2]);
+  void *handle = GetHandle(prhs[1]);
+  void *data_handle = GetHandle(prhs[2]);
   char *node_name = mxArrayToString(prhs[3]);
   plhs[0] = MXCXNNetExtractIter(handle, data_handle, node_name);
   mxFree(node_name);
 }
 
 static void MEXCXNNetEvaluate(MEX_ARGS) {
-  void *handle = mxGetData(prhs[1]);
-  void *data_handle = mxGetData(prhs[2]);
+  void *handle = GetHandle(prhs[1]);
+  void *data_handle = GetHandle(prhs[2]);
   char *data_name = mxArrayToString(prhs[3]);
   plhs[0] = MXCXNNetEvaluate(handle, data_handle, data_name);
   mxFree(data_name);
