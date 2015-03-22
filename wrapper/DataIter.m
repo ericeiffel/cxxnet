@@ -1,5 +1,5 @@
 classdef DataIter
-    properties (Access = private)
+    properties %(Access = private)
         head_
         tail_
         handle_
@@ -27,12 +27,12 @@ classdef DataIter
            this.tail_ = false;
         end
         function check_valid(this)
-            assert(this.head_ == true, 'iterator is at head');
-            assert(this.tail_ == true, 'iterator is at end');
+            %assert(this.head_ == true, 'iterator is at head');
+            assert(this.tail_ == false, 'iterator is at end');
         end
         function data = get_data(this)
             if this.tail_ == false,
-                data = cxxnet_mex('MXCXNIOGetData', this.handle_);
+                data = cxxnet_mex('MEXCXNIOGetData', this.handle_);
             else
                 printf('Iterator is at end\n');
             end

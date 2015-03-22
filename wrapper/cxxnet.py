@@ -278,7 +278,7 @@ class Net:
             return None
         return ctypes2numpyT(ret, [oshape[i] for i in range(odim.value)], 'float32')
 
-def train(cfg, data, num_round, param, eval_data = None):
+def train(cfg, data, num_round, param, label = None, eval_data = None):
     net = Net(cfg = cfg)
     if isinstance(param, dict):
         param = param.items()
